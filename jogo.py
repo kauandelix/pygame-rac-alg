@@ -7,7 +7,7 @@ import sys
 pygame.init()
 pygame.font.init()
 
-# Constantes
+# Constantesgit remote set-url origin https://github.com/kauandelix/pygame-rac-alg.git
 LARGURA, ALTURA = 1000, 800
 VIDA_MAXIMA = 100
 ENERGIA_MAXIMA = 100
