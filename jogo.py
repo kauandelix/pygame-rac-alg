@@ -425,15 +425,6 @@ def dormir():
         status_doente = False
         sono_cura_mensagem += " Você se sentiu um pouco melhor da doença. "
     
-    # Opcional: Se quiser que o envenenamento ou ferimento grave também se curem com o tempo, adicione aqui
-    # if status_envenenado and random.random() < 0.1: # Exemplo: 10% de chance de o veneno passar
-    #     status_envenenado = False
-    #     sono_cura_mensagem += " O efeito do veneno parece ter diminuído. "
-    
-    # if status_ferimento_grave and random.random() < 0.05: # Exemplo: 5% de chance de o ferimento melhorar sozinho
-    #     status_ferimento_grave = False
-    #     sono_cura_mensagem += " Seu ferimento grave parece estar cicatrizando. "
-
     adicionar_historico(f"Você dormiu em seu abrigo seguro e se recuperou bem.")
     mensagem_acao = (f"Você dormiu e um novo dia começou! ☀️"
                      f" ❤️ +{vida_recuperada} vida, ⚡ +{energia_recuperada} energia." + sono_cura_mensagem)
