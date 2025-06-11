@@ -15,35 +15,50 @@ ENERGIA_REGEN_SONO_BASE = 40
 VIDA_REGEN_SONO_BASE = 15
 
 # --- DADOS DO JOGO ---
-# Dicionários centralizados para evitar repetição
+# Dicionários centralizados pra evitar repetição
 # Adicionado "tipo" para facilitar o filtro e manuseio
 ITENS_GERAL = {
+#Armas 
     "Faca": {"tipo": "arma", "dano_min": 10, "dano_max": 20},
     "Arco": {"tipo": "arma", "dano_min": 15, "dano_max": 25},
     "Escopeta": {"tipo": "arma", "dano_min": 30, "dano_max": 50},
+    "Machado": {"tipo": "arma", "dano_min": 20, "dano_max": 35},
+    "Lança": {"tipo": "arma", "dano_min": 18, "dano_max": 28},
+    "Pistola": {"tipo": "arma", "dano_min": 25, "dano_max": 40},
+    "Espingarda de Cano Curto": {"tipo": "arma", "dano_min": 35, "dano_max": 55},
+    "Taco com Pregos": {"tipo": "arma", "dano_min": 12, "dano_max": 24},
+    "Foice Enferrujada": {"tipo": "arma", "dano_min": 16, "dano_max": 26},
+#Itens de defesa 
     "Armadura de Couro": {"tipo": "protecao", "protecao": 10},
     "Capacete": {"tipo": "protecao", "protecao": 5},
     "Escudo Improvisado": {"tipo": "protecao", "protecao": 8},
-    "Kit de Primeiros Socorros": {"tipo": "medico", "vida_recuperada": 25},
+#itens de regeneração
+    "Kit de Primeiros Socorros": {"tipo": "medico", "vida_recuperada": 25, "cura_ferimento_grave": True}, 
     "Atadura": {"tipo": "medico", "vida_recuperada": 10},
+    "Antídoto": {"tipo": "medico", "cura_envenenamento": True, "energia_recuperada": 0}, # Adicionei energia_recuperada para ser consistente
+    "Chá de Ervas": {"tipo": "medico", "cura_doenca": True, "energia_recuperada": 5}, 
+#itens comestiveis
     "Fruta": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
     "Nozes": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
     "Raiz comestível": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
-    "Corda": {"tipo": "utilitario"} # Exemplo de item sem efeito direto no uso
+    "Cogumelo Desconhecido": {"tipo": "comida", "vida_recuperada": (-5, 0), "energia_recuperada": 5, "chance_doenca": 0.5},
 }
 
 ANIMAIS = {
-    "Onça": {"dano_min": 15, "dano_max": 25, "vida": 60, "chance_fuga_base": 0.3},
-    "Cobra": {"dano_min": 8, "dano_max": 18, "vida": 30, "chance_fuga_base": 0.6},
-    "Lobo": {"dano_min": 12, "dano_max": 22, "vida": 50, "chance_fuga_base": 0.4},
-    "Arraia": {"dano_min": 7, "dano_max": 15, "vida": 25, "chance_fuga_base": 0.7},
+    "🐆Onça": {"dano_min": 15, "dano_max": 25, "vida": 60, "chance_fuga_base": 0.3, "chance_ferimento_grave": 0.2},
+    "🐍Cobra": {"dano_min": 8, "dano_max": 18, "vida": 30, "chance_fuga_base": 0.6, "chance_envenenamento": 0.7},
+    "🐺Lobo Guará": {"dano_min": 12, "dano_max": 22, "vida": 50, "chance_fuga_base": 0.4, "chance_ferimento_grave": 0.1},
+    "🐗Javali": {"dano_min": 10, "dano_max": 20, "vida": 30, "chance_fuga_base": 0.4, "chance_ferimento_grave": 0.15},
+    "🐊jacaré": {"dano_min": 8, "dano_max": 25, "vida": 60, "chance_fuga_base": 0.7, "chance_ferimento_grave": 0.3},
+    "🐒Chimpanzé": {"dano_min": 6, "dano_max": 15, "vida": 80, "chance_fuga_base": 0.7},
+    "🦍Gorila": {"dano_min": 12, "dano_max": 25, "vida": 100, "chance_fuga_base": 0.3, "chance_ferimento_grave": 0.25},
 }
 
 # --- ESTADOS DO JOGO ---
 INTRO = 0
 JOGANDO = 1
-ESPERA_COMIDA = 2 # Renomeado para mais clareza
-ESPERA_USAR_ITEM = 3 # Renomeado para mais clareza
+ESPERA_COMIDA = 2 
+ESPERA_USAR_ITEM = 3 
 FIM = 4
 COMBATE = 5
 
@@ -64,6 +79,11 @@ mensagem_acao = ""
 item_a_processar = None # Usado para comida encontrada ou item da mochila a usar
 inimigo_atual = None
 vida_inimigo_atual = 0
+
+#VARIÁVEIS DE SAÚDE
+status_envenenado = False
+status_ferimento_grave = False
+status_doente = False
 
 # --- FUNÇÕES DE UTILIDADE ---
 def clear_screen():
@@ -109,18 +129,78 @@ def usar_arma_em_combate():
         return dano, arma
     return random.randint(5, 10), "mãos nuas" # Dano base se não tiver arma
 
+# --- FUNÇÃO PARA PROCESSAR STATUS NEGATIVOS ---
+def processar_status_negativos():
+    """Aplica os efeitos dos status negativos (envenenamento, ferimento, doença) a cada turno/ação."""
+    global vida, energia, mensagem_acao, status_envenenado, status_ferimento_grave, status_doente
+
+    if status_envenenado:
+        dano_veneno = random.randint(2, 5)
+        vida -= dano_veneno
+        mensagem_acao += f"\nVocê está envenenado(a) e perdeu {dano_veneno} de vida! 😵"
+        adicionar_historico(f"Perdeu {dano_veneno} de vida devido ao envenenamento.")
+        if vida <= 0: return # Sai cedo se a vida zerar
+
+    if status_ferimento_grave:
+        dano_ferimento = random.randint(1, 3)
+        vida -= dano_ferimento
+        mensagem_acao += f"\nSeu ferimento grave está sangrando e você perdeu {dano_ferimento} de vida! 🩸"
+        adicionar_historico(f"Perdeu {dano_ferimento} de vida devido ao ferimento grave.")
+        if vida <= 0: return # Sai cedo se a vida zerar
+
+    if status_doente:
+        energia_drenada = random.randint(1, 4)
+        energia -= energia_drenada
+        mensagem_acao += f"\nVocê se sente fraco(a) pela doença e perdeu {energia_drenada} de energia! 😩"
+        adicionar_historico(f"Perdeu {energia_drenada} de energia devido à doença.")
+        if energia <= 0: return # Sai cedo se a energia zerar
+
 # --- FUNÇÕES DE AÇÃO DO JOGADOR ---
 
 def processar_consumo_item(item_nome, vida_recuperada, energia_recuperada):
     """Aplica os efeitos de consumo de um item e remove-o da mochila."""
-    global vida, energia, pontuacao, mensagem_acao, mochila, acoes_no_dia
+    global vida, energia, pontuacao, mensagem_acao, mochila, acoes_no_dia, status_envenenado, status_ferimento_grave, status_doente
     
+    # Efeitos gerais de vida e energia
     vida = min(vida + vida_recuperada, VIDA_MAXIMA)
     energia = min(energia + energia_recuperada, ENERGIA_MAXIMA)
     pontuacao += 30 # Pontos fixos por consumir
-    mensagem_acao = f"Você usou o(a) {item_nome}. ❤️ +{vida_recuperada} vida, ⚡ +{energia_recuperada} energia, ⭐ +30 pontos!"
+    
+    # Efeitos específicos para o novo sistema de saúde
+    item_data = ITENS_GERAL[item_nome]
+    
+    efeitos_especificos_msg = ""
+
+    if item_data.get("cura_envenenamento"):
+        if status_envenenado:
+            status_envenenado = False
+            efeitos_especificos_msg += " Você se curou do envenenamento! ✨"
+        else:
+            efeitos_especificos_msg += " Não estava envenenado, mas o antídoto foi consumido. 🤔"
+    
+    if item_data.get("cura_ferimento_grave"):
+        if status_ferimento_grave:
+            status_ferimento_grave = False
+            efeitos_especificos_msg += " Seu ferimento grave foi tratado! 💪"
+        else:
+            efeitos_especificos_msg += " Não tinha ferimento grave, mas o kit foi usado. 🤔"
+
+    if item_data.get("cura_doenca"):
+        if status_doente:
+            status_doente = False
+            efeitos_especificos_msg += " Você se sentiu melhor da doença! 🌟"
+        else:
+            efeitos_especificos_msg += " Não estava doente, mas o chá foi consumido. 🤔"
+    
+    # Efeito colateral da comida (Cogumelo Desconhecido)
+    if item_data.get("chance_doenca") and random.random() < item_data["chance_doenca"]:
+        status_doente = True
+        efeitos_especificos_msg += " Mas parece que você pegou uma doença estranha... 🤢"
+        adicionar_historico(f"Você consumiu {item_nome} e ficou doente.")
+
+    mensagem_acao = f"Você usou o(a) {item_nome}. ❤️ +{vida_recuperada} vida, ⚡ +{energia_recuperada} energia, ⭐ +30 pontos!" + efeitos_especificos_msg
     adicionar_historico(f"Você consumiu um {item_nome}.")
-    mochila.remove(item_nome) # Remove pelo nome, pois pode haver duplicatas.
+    mochila.remove(item_nome) # Remove pelo nome porque pode haver duplicatas.
 
 def usar_item_da_mochila(indice_escolhido):
     """Gerencia o uso de um item da mochila."""
@@ -133,20 +213,24 @@ def usar_item_da_mochila(indice_escolhido):
         
         # Animação de uso para qualquer item
         frames_item = [
-            "  [ ]", "  [U]", "  [U-]", "  [U-S]", "  [U-S-E]",
-            "  [U-S-E] \n   _|_", "  [U-S-E] \n   _|_ \n    |", "  [U-S-E] \n   _|_ \n    | \n   / \\"
+            "   [ ]", "   [U]", "   [U-]", "   [U-S]", "   [U-S-E]",
+            "   [U-S-E] \n   _|_", "   [U-S-E] \n   _|_ \n    |", "   [U-S-E] \n   _|_ \n    | \n   / \\"
         ]
         show_animation(frames_item, delay=0.1, message="🩹 Usando item...")
 
         item_data = ITENS_GERAL[item_nome]
         item_tipo = item_data["tipo"]
 
-        if item_tipo == "medico":
-            vida_recuperada = item_data["vida_recuperada"]
-            processar_consumo_item(item_nome, vida_recuperada, 0) # Kits médicos não dão energia
-        elif item_tipo == "comida":
-            vida_recuperada = random.randint(*item_data["vida_recuperada"])
-            energia_recuperada = item_data["energia_recuperada"]
+        vida_recuperada = 0
+        if "vida_recuperada" in item_data:
+            if isinstance(item_data["vida_recuperada"], tuple):
+                vida_recuperada = random.randint(*item_data["vida_recuperada"])
+            else:
+                vida_recuperada = item_data["vida_recuperada"]
+        
+        energia_recuperada = item_data.get("energia_recuperada", 0) # Certifica que sempre tenha um valor
+
+        if item_tipo == "medico" or item_tipo == "comida":
             processar_consumo_item(item_nome, vida_recuperada, energia_recuperada)
         elif item_tipo == "utilitario":
             # Para itens utilitários que não se "consomem" ou têm efeito específico
@@ -168,7 +252,7 @@ def usar_item_da_mochila(indice_escolhido):
 
 def buscar_comida():
     """Ação de buscar comida."""
-    global mensagem_acao, item_a_processar, acoes_no_dia, vida, energia, pontuacao
+    global mensagem_acao, item_a_processar, acoes_no_dia, vida, energia, pontuacao, status_doente
     
     frames_buscar = ["Buscando  .", "Buscando ..", "Buscando ..."]
     show_animation(frames_buscar, delay=0.3, message="🌳 Procurando por comida...")
@@ -178,13 +262,34 @@ def buscar_comida():
     chance_encontrar = PORCENTAGEM_COMIDA_BASE * (0.6 if abrigo_construido else 1.0)
     
     if random.random() < chance_encontrar:
-        item_nome = random.choice([item for item, data in ITENS_GERAL.items() if data["tipo"] == "comida"])
+        comidas_encontradas = [item for item, data in ITENS_GERAL.items() if data["tipo"] == "comida"]
+        
+        # Aumentar a chance de encontrar Cogumelo Desconhecido
+        if random.random() < 0.15: # 15% de chance de ser um cogumelo desconhecido
+            item_nome = "Cogumelo Desconhecido"
+        else:
+            # Garante que não escolha o cogumelo desconhecido se houver outras opções
+            outras_comidas = [c for c in comidas_encontradas if c != "Cogumelo Desconhecido"]
+            if outras_comidas:
+                item_nome = random.choice(outras_comidas)
+            else: # Caso só exista o cogumelo, ele será escolhido
+                item_nome = "Cogumelo Desconhecido"
+        
         item_a_processar = item_nome # Armazena o nome do item encontrado
         item_data = ITENS_GERAL[item_nome]
-        vida_ganho = random.randint(*item_data["vida_recuperada"])
+        
+        # Ajuste para vida_recuperada que pode ser negativa
+        vida_ganho_str = ""
+        if isinstance(item_data["vida_recuperada"], tuple):
+            vida_ganho = random.randint(*item_data["vida_recuperada"])
+            vida_ganho_str = f"({vida_ganho})" # Mostra o valor exato que pode ser negativo
+        else:
+            vida_ganho = item_data["vida_recuperada"]
+            vida_ganho_str = f"+{vida_ganho}"
+
         energia_ganho = item_data["energia_recuperada"]
         adicionar_historico(f"Você encontrou comida ({item_nome}).")
-        mensagem_acao = (f"Você encontrou comida: {item_nome} (❤️ +{vida_ganho}, ⚡ +{energia_ganho}).\n"
+        mensagem_acao = (f"Você encontrou comida: {item_nome} (❤️ {vida_ganho_str} vida, ⚡ +{energia_ganho} energia).\n"
                          "Deseja (C) Comer agora ou (G) Guardar na mochila? (C/G) ❓")
         return True # Indica que encontrou algo e precisa de escolha
     else:
@@ -236,7 +341,7 @@ def explorar():
     energia -= custo_energia
     acoes_no_dia += 1
 
-    frames_explorar = [" Explorando...", "|--|  .--|", "|  | /   |", "\\--/----|", "  ?     !"]
+    frames_explorar = [" Explorando...", "|--|  .--|", "|  | /   |", "\\--/----|", "   ?     !"]
     show_animation(frames_explorar, delay=0.25, message="🗺️ Explorando a área...")
     
     chance_comida_explorar = PORCENTAGEM_COMIDA_BASE * (0.6 if abrigo_construido else 1.0)
@@ -271,6 +376,10 @@ def explorar():
 
         if tipo_item_encontrado:
             possiveis_itens = [item for item, data in ITENS_GERAL.items() if data["tipo"] == tipo_item_encontrado]
+            # Excluir Cogumelo Desconhecido de item_medico para evitar que apareça aqui
+            if tipo_item_encontrado == "medico":
+                possiveis_itens = [item for item in possiveis_itens if item != "Cogumelo Desconhecido"]
+
             if possiveis_itens:
                 item_encontrado = random.choice(possiveis_itens)
                 if adicionar_item_mochila(item_encontrado):
@@ -291,7 +400,7 @@ def explorar():
 
 def dormir():
     """Ação de dormir para passar o dia."""
-    global vida, energia, dias_passados, acoes_no_dia, mensagem_acao
+    global vida, energia, dias_passados, acoes_no_dia, mensagem_acao, status_doente, status_envenenado, status_ferimento_grave
 
     if not abrigo_construido:
         adicionar_historico(f"Você tentou dormir, mas não tinha um abrigo seguro.")
@@ -309,33 +418,40 @@ def dormir():
     
     dias_passados += 1
     acoes_no_dia = 0
+
+    # EFEITOS DO SONO NOS STATUS NEGATIVOS
+    sono_cura_mensagem = ""
+    if status_doente and random.random() < 0.3: # 30% de chance de melhorar da doença ao dormir
+        status_doente = False
+        sono_cura_mensagem += " Você se sentiu um pouco melhor da doença. "
+
     adicionar_historico(f"Você dormiu em seu abrigo seguro e se recuperou bem.")
     mensagem_acao = (f"Você dormiu e um novo dia começou! ☀️"
-                    f" ❤️ +{vida_recuperada} vida, ⚡ +{energia_recuperada} energia.")
+                     f" ❤️ +{vida_recuperada} vida, ⚡ +{energia_recuperada} energia." + sono_cura_mensagem)
 
 # --- FUNÇÕES DE COMBATE ---
 def gerenciar_combate():
     """Gerencia o combate turno a turno."""
-    global vida, energia, pontuacao, estado_jogo, inimigo_atual, vida_inimigo_atual, mensagem_acao, acoes_no_dia
+    global vida, energia, pontuacao, estado_jogo, inimigo_atual, vida_inimigo_atual, mensagem_acao, acoes_no_dia, status_envenenado, status_ferimento_grave
 
     clear_screen()
     print(f"⚔️ VOCÊ ESTÁ EM COMBATE COM UM(A) {inimigo_atual}! ⚔️")
     print(f"❤️ Sua vida: {vida}/{VIDA_MAXIMA} | ⚡ Sua energia: {energia}/{ENERGIA_MAXIMA}")
     print(f"👾 Vida do {inimigo_atual}: {vida_inimigo_atual}/{ANIMAIS[inimigo_atual]['vida']}")
     print("\nEscolha sua ação:")
-    print("  (A) Atacar")
-    print("  (D) Defender")
-    print("  (F) Fugir")
+    print("   (A) Atacar")
+    print("   (D) Defender")
+    print("   (F) Fugir")
 
     escolha_combate = input("Sua ação: ").strip().upper()
-    mensagem_acao = ""
+    mensagem_acao_combate_turno = "" # Mensagem específica para este turno de combate
     dano_defesa = 0
 
     if escolha_combate == 'A':
         dano_causado, arma_usada = usar_arma_em_combate()
         vida_inimigo_atual -= dano_causado
         pontuacao += 5
-        mensagem_acao += f"Você ataca com seu(sua) {arma_usada}, causando {dano_causado} de dano! 💥"
+        mensagem_acao_combate_turno += f"Você ataca com seu(sua) {arma_usada}, causando {dano_causado} de dano! 💥"
         adicionar_historico(f"Você atacou o(a) {inimigo_atual} com {arma_usada}, causando {dano_causado} de dano.")
 
     elif escolha_combate == 'D':
@@ -343,10 +459,10 @@ def gerenciar_combate():
         if energia >= energia_gasta:
             energia -= energia_gasta
             dano_defesa = random.randint(10, 20)
-            mensagem_acao += f"Você se defende, reduzindo o próximo dano recebido em {dano_defesa}. 🛡️ (-{energia_gasta} energia)"
+            mensagem_acao_combate_turno += f"Você se defende, reduzindo o próximo dano recebido em {dano_defesa}. 🛡️ (-{energia_gasta} energia)"
             adicionar_historico(f"Você se defendeu do ataque do(a) {inimigo_atual}.")
         else:
-            mensagem_acao = "⚡ Energia insuficiente para defender! Você fica vulnerável."
+            mensagem_acao_combate_turno = "⚡ Energia insuficiente para defender! Você fica vulnerável."
             adicionar_historico(f"Você tentou se defender do(a) {inimigo_atual}, mas estava sem energia.")
 
     elif escolha_combate == 'F':
@@ -369,17 +485,17 @@ def gerenciar_combate():
             else:
                 dano_retaliacao = random.randint(ANIMAIS[inimigo_atual]["dano_min"], ANIMAIS[inimigo_atual]["dano_max"]) // 2
                 vida -= dano_retaliacao
-                mensagem_acao = f"Você tentou fugir, mas falhou! 😬 O(a) {inimigo_atual} não te deixa escapar! (-{custo_energia_fuga} energia). Você sofreu {dano_retaliacao} de dano de retaliação! 💔"
+                mensagem_acao_combate_turno = f"Você tentou fugir, mas falhou! 😬 O(a) {inimigo_atual} não te deixa escapar! (-{custo_energia_fuga} energia). Você sofreu {dano_retaliacao} de dano de retaliação! 💔"
                 adicionar_historico(f"Você tentou fugir do(a) {inimigo_atual}, mas falhou e sofreu dano.")
         else:
-            mensagem_acao = "⚡ Energia insuficiente para tentar a fuga! Você precisa de mais energia."
+            mensagem_acao_combate_turno = "⚡ Energia insuficiente para tentar a fuga! Você precisa de mais energia."
             adicionar_historico(f"Você tentou fugir do(a) {inimigo_atual}, mas estava sem energia.")
     else:
-        mensagem_acao = "Comando inválido no combate. Tente (A)tacar, (D)efender ou (F)ugir."
+        mensagem_acao_combate_turno = "Comando inválido no combate. Tente (A)tacar, (D)efender ou (F)ugir."
         
     if vida_inimigo_atual <= 0:
         pontuacao += 100
-        mensagem_acao += f"\nVocê derrotou o(a) {inimigo_atual}! 🎉 (+100 pontos)"
+        mensagem_acao = f"Você derrotou o(a) {inimigo_atual}! 🎉 (+100 pontos)" # Esta mensagem será a principal agora
         adicionar_historico(f"Você derrotou o(a) {inimigo_atual} em combate!")
         estado_jogo = JOGANDO
         inimigo_atual = None
@@ -393,14 +509,29 @@ def gerenciar_combate():
     dano_animal_final = max(0, dano_animal - dano_defesa - protecao_total)
     
     vida -= dano_animal_final
-    mensagem_acao += f"\nO(a) {inimigo_atual} ataca, causando {dano_animal_final} de dano a você! 🩸"
+    mensagem_acao_combate_turno += f"\nO(a) {inimigo_atual} ataca, causando {dano_animal_final} de dano a você! 🩸"
     if protecao_total > 0:
-        mensagem_acao += f" (Sua proteção física reduziu {protecao_total} de dano!)"
+        mensagem_acao_combate_turno += f" (Sua proteção física reduziu {protecao_total} de dano!)"
 
     adicionar_historico(f"O(a) {inimigo_atual} te atacou, causando {dano_animal_final} de dano.")
     pontuacao -= 5
 
-    frames_combate = [f"Você vs {inimigo_atual}", "  ⚔️", "  💥", "  ⚔️", f"({inimigo_atual} ataca!)"]
+    # APLICAÇÃO DE STATUS NEGATIVOS APÓS O ATAQUE DO ANIMAL
+    if ANIMAIS[inimigo_atual].get("chance_envenenamento") and random.random() < ANIMAIS[inimigo_atual]["chance_envenenamento"]:
+        if not status_envenenado: # Evita aplicar se já estiver envenenado
+            status_envenenado = True
+            mensagem_acao_combate_turno += f" Você foi envenenado(a) pelo(a) {inimigo_atual}! ☠️"
+            adicionar_historico(f"Você foi envenenado(a) pelo(a) {inimigo_atual}.")
+    
+    if ANIMAIS[inimigo_atual].get("chance_ferimento_grave") and random.random() < ANIMAIS[inimigo_atual]["chance_ferimento_grave"]:
+        if not status_ferimento_grave: # Evita aplicar se já tiver ferimento grave
+            status_ferimento_grave = True
+            mensagem_acao_combate_turno += f" Você sofreu um ferimento grave! 🩹"
+            adicionar_historico(f"Você sofreu um ferimento grave em combate contra o(a) {inimigo_atual}.")
+    
+    mensagem_acao = mensagem_acao_combate_turno # Atualiza a mensagem principal do jogo
+    
+    frames_combate = [f"Você vs {inimigo_atual}", "   ⚔️", "   💥", "   ⚔️", f"({inimigo_atual} ataca!)"]
     show_animation(frames_combate, delay=0.2, message="⚔️ Combate em andamento!")
     
     if vida <= 0:
@@ -420,6 +551,18 @@ def mostrar_status():
     protecao_total = calcular_protecao_total()
     if protecao_total > 0:
         print(f"🛡️ Proteção Física: {protecao_total}")
+
+    condicoes_atuais = []
+    if status_envenenado:
+        condicoes_atuais.append("☠️ Envenenado!")
+    if status_ferimento_grave:
+        condicoes_atuais.append("🩹 Ferimento Grave!")
+    if status_doente:
+        condicoes_atuais.append("🤢 Doente!")
+    
+    if condicoes_atuais:
+        print("🚨 Condições: " + " | ".join(condicoes_atuais))
+
     print("🎒 Mochila: " + (", ".join(mochila) if mochila else "Vazia"))
     print("-------------------------")
 
@@ -449,7 +592,7 @@ def desenhar_intro():
     global nome_jogador
     clear_screen()
     print("===================================")
-    print("    🌲 SOBREVIVÊNCIA NA FLORESTA 🌳    ")
+    print("     🌲 SOBREVIVÊNCIA NA FLORESTA 🌳     ")
     print("===================================\n")
     print("Você está perdido em uma floresta e precisa sobreviver. 🧭")
     print("Coletar recursos, montar um abrigo, explorar e fugir de animais selvagens. 🦊🐻🐍")
@@ -457,6 +600,7 @@ def desenhar_intro():
     print("A comida encontrada pode ser comida na hora ou guardada para depois. 🍎🌰")
     print("O tempo passa a cada ação. Gerencie seus dias para não se exaurir. ☀️🌙")
     print("Construa um abrigo para poder descansar e recuperar suas forças! 🏕️")
+    print("☠️Cuidado com os perigos ocultos: você pode ser envenenado(a), se ferir gravemente ou ficar doente!☠️")
     print("Sua meta é acumular pontos e explorar o suficiente para encontrar o caminho de casa. 🏠\n")
     print("--- Controles ---")
     print("1️⃣ - Buscar comida | 2️⃣ - Montar abrigo | 3️⃣ - Explorar")
@@ -472,7 +616,7 @@ def desenhar_fim():
     """Exibe a tela final do jogo com base no resultado."""
     clear_screen()
     print("===================================")
-    print("        🔚 FIM DE JOGO 🔚              ")
+    print("         FIM DE JOGO             ")
     print("===================================\n")
     if mensagem_final == "vitoria":
         print(f"🎉 Parabéns, {nome_jogador}! Você sobreviveu e encontrou o caminho de volta para casa! 🏡✨")
@@ -489,7 +633,7 @@ def desenhar_fim():
     if historico_acoes:
         for dia, eventos_do_dia in sorted(historico_acoes.items()):
             print(f"\n--- Dia {dia} ---")
-            print("  " + "\n  ".join(eventos_do_dia) if eventos_do_dia else "  Nenhum evento registrado neste dia.")
+            print("   " + "\n   ".join(eventos_do_dia) if eventos_do_dia else "   Nenhum evento registrado neste dia.")
     else:
         print("Não há registros de sua jornada.")
     print("-------------------------------------\n")
@@ -506,6 +650,12 @@ def main():
             mostrar_status()
             if estado_jogo == COMBATE and inimigo_atual:
                 print(f"👾 Vida do {inimigo_atual}: {vida_inimigo_atual}/{ANIMAIS[inimigo_atual]['vida']}")
+
+        # PROCESSAR STATUS NEGATIVOS ANTES DE VERIFICAR O FIM DE JOGO
+        # Isso garante que os efeitos dos status negativos sejam aplicados
+        # e potencialmente levem ao fim do jogo se vida/energia chegarem a zero.
+        if estado_jogo == JOGANDO or estado_jogo == COMBATE:
+            processar_status_negativos()
 
         if verificar_fim_de_jogo():
             desenhar_fim()
@@ -566,11 +716,30 @@ def main():
             if escolha_comida == 'C':
                 if item_a_processar and ITENS_GERAL.get(item_a_processar, {}).get("tipo") == "comida":
                     item_data = ITENS_GERAL[item_a_processar]
-                    vida_rec = random.randint(*item_data["vida_recuperada"])
-                    energia_rec = item_data["energia_recuperada"]
-                    processar_consumo_item(item_a_processar, vida_rec, energia_rec)
-                    # Não remove da mochila aqui pois o item não está na mochila (ainda)
-                    mensagem_acao = f"Você comeu o(a) {item_a_processar}. ❤️ +{vida_rec} vida, ⚡ +{energia_rec} energia, ⭐ +30 pontos!"
+                    
+                    # Cuidado com item_data["vida_recuperada"] que pode ser uma tupla (min, max)
+                    if isinstance(item_data["vida_recuperada"], tuple):
+                        vida_rec = random.randint(*item_data["vida_recuperada"])
+                    else:
+                        vida_rec = item_data["vida_recuperada"]
+                    
+                    energia_rec = item_data.get("energia_recuperada", 0) # Pode não ter energia recuperada
+                    
+                    # Consumir diretamente o item encontrado (não está na mochila ainda)
+                    global vida, energia, pontuacao, status_doente
+                    
+                    vida = min(vida + vida_rec, VIDA_MAXIMA)
+                    energia = min(energia + energia_rec, ENERGIA_MAXIMA)
+                    pontuacao += 30
+                    
+                    mensagem_acao_temp = f"Você comeu o(a) {item_a_processar}. ❤️ {vida_rec if vida_rec < 0 else '+' + str(vida_rec)} vida, ⚡ +{energia_rec} energia, ⭐ +30 pontos!"
+                    
+                    if item_data.get("chance_doenca") and random.random() < item_data["chance_doenca"]:
+                        status_doente = True
+                        mensagem_acao_temp += " Mas parece que você pegou uma doença estranha... 🤢"
+                        adicionar_historico(f"Você comeu {item_a_processar} e ficou doente.")
+                    
+                    mensagem_acao = mensagem_acao_temp
                     adicionar_historico(f"Você comeu o(a) {item_a_processar} que encontrou.")
                 else:
                     mensagem_acao = "Erro: sem comida para comer. 😟"
@@ -594,7 +763,7 @@ def main():
             itens_usaveis = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
             
             for i, item_nome in enumerate(itens_usaveis):
-                print(f"  ({i+1}) {item_nome}")
+                print(f"   ({i+1}) {item_nome}")
             
             try:
                 escolha_idx = int(input("Número do item para usar: ").strip())
