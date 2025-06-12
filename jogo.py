@@ -41,6 +41,9 @@ DADOS_ITENS = {
     "Nozes": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
     "Raiz comestível": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
     "Cogumelo Desconhecido": {"tipo": "comida", "vida_recuperada": (-5, 0), "energia_recuperada": 5, "chance_doenca": 0.5},
+    "Erva do BOB MARLEY": {"tipo": "comida", "vida_recuperada": (-1, 0), "energia_recuperada": (-3,-1), "chance_doenca": 1},
+     "Coxinha de Farofa": {"tipo": "comida", "vida_recuperada": (5, 0), "energia_recuperada": 6, "chance_doenca": 0},
+     
 }
 
 DADOS_ANIMAIS = {
