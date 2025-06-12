@@ -252,6 +252,7 @@ def usar_item_da_mochila(indice_escolhido):
 
 def buscar_comida():
     """Ação de buscar comida."""
+    # Garante que a declaração global seja a primeira coisa na função
     global mensagem_acao, item_a_processar, acoes_no_dia, vida, energia, pontuacao, status_doente
     
     frames_buscar = ["Buscando  .", "Buscando ..", "Buscando ..."]
@@ -341,7 +342,7 @@ def explorar():
     energia -= custo_energia
     acoes_no_dia += 1
 
-    frames_explorar = [" Explorando...", "|--|  .--|", "|  | /   |", "\\--/----|", "   ?     !"]
+    frames_explorar = [" Explorando...", "|--|   .--|", "|  | /   |", "\\--/----|", "   ?     !"]
     show_animation(frames_explorar, delay=0.25, message="🗺️ Explorando a área...")
     
     chance_comida_explorar = PORCENTAGEM_COMIDA_BASE * (0.6 if abrigo_construido else 1.0)
@@ -471,7 +472,7 @@ def gerenciar_combate():
             energia -= custo_energia_fuga
             chance_fuga = ANIMAIS[inimigo_atual]["chance_fuga_base"] + (vida / VIDA_MAXIMA * 0.2)
             
-            frames_fuga = ["Correndo  . ", "Correndo ..", "Correndo ... 🏃", "Fugindo!"]
+            frames_fuga = ["Correndo   . ", "Correndo ..", "Correndo ... 🏃", "Fugindo!"]
             show_animation(frames_fuga, delay=0.15, message="Tentando fugir...")
 
             if random.random() < chance_fuga:
@@ -491,7 +492,7 @@ def gerenciar_combate():
             mensagem_acao_combate_turno = "⚡ Energia insuficiente para tentar a fuga! Você precisa de mais energia."
             adicionar_historico(f"Você tentou fugir do(a) {inimigo_atual}, mas estava sem energia.")
     else:
-        mensagem_acao_combate_turno = "Comando inválido no combate. Tente (A)tacar, (D)efender ou (F)ugir."
+        mensagem_acao_combate_turno = "Comando inválido no combate. Tente (A)tacar, (D)efender ou (F)Fugir."
         
     if vida_inimigo_atual <= 0:
         pontuacao += 100
@@ -592,7 +593,7 @@ def desenhar_intro():
     global nome_jogador
     clear_screen()
     print("===================================")
-    print("     🌲 SOBREVIVÊNCIA NA FLORESTA 🌳     ")
+    print("    🌲 SOBREVIVÊNCIA NA FLORESTA 🌳     ")
     print("===================================\n")
     print("Você está perdido em uma floresta e precisa sobreviver. 🧭")
     print("Coletar recursos, montar um abrigo, explorar e fugir de animais selvagens. 🦊🐻🐍")
@@ -645,140 +646,142 @@ def main():
     """Função principal que controla o fluxo do jogo."""
     global estado_jogo, mensagem_acao, item_a_processar
 
+    # Esta verificação é crucial para garantir que a introdução só ocorra uma vez.
+    if estado_jogo == INTRO:
+        desenhar_intro()
+        estado_jogo = JOGANDO # Inicia o jogo após a intro
+        mensagem_acao = "Sua jornada na floresta começa agora! Boa sorte!"
+
     while True:
-        if estado_jogo != INTRO:
-            mostrar_status()
-            if estado_jogo == COMBATE and inimigo_atual:
-                print(f"👾 Vida do {inimigo_atual}: {vida_inimigo_atual}/{ANIMAIS[inimigo_atual]['vida']}")
+        clear_screen()
+        mostrar_status()
+        if estado_jogo == COMBATE and inimigo_atual:
+            print(f"👾 Vida do {inimigo_atual}: {vida_inimigo_atual}/{ANIMAIS[inimigo_atual]['vida']}")
 
         # PROCESSAR STATUS NEGATIVOS ANTES DE VERIFICAR O FIM DE JOGO
-        # Isso garante que os efeitos dos status negativos sejam aplicados
-        # e potencialmente levem ao fim do jogo se vida/energia chegarem a zero.
-        if estado_jogo == JOGANDO or estado_jogo == COMBATE:
-            processar_status_negativos()
-
+        processar_status_negativos()
         if verificar_fim_de_jogo():
             desenhar_fim()
-            break
+            break # Sai do loop principal
 
-        if estado_jogo == INTRO:
-            desenhar_intro()
-            estado_jogo = JOGANDO
-            mensagem_acao = f"Bem-vindo(a) à floresta, {nome_jogador}! O que você fará? 🤔"
-            adicionar_historico("Início da Jornada. Você acordou perdido(a) na floresta.")
-        
-        elif estado_jogo == JOGANDO:
-            if acoes_no_dia >= TEMPO_LIMITE_DIA:
-                mensagem_acao += "\n🌙 A noite está caindo. É perigoso continuar explorando. "
-                mensagem_acao += "Considere dormir (4)." if abrigo_construido else "Você não tem um abrigo seguro para descansar. "
-            elif energia < ENERGIA_MAXIMA / 3:
-                mensagem_acao += "\n⚡ Sua energia está baixa. Considere dormir (4) para recuperar. "
-                if not abrigo_construido:
-                    mensagem_acao += "Você precisa construir um abrigo primeiro. "
-
-            print(f"\n>> {mensagem_acao}\n")
-            print("Suas opções: 1️⃣ Buscar comida | 2️⃣ Montar abrigo | 3️⃣ Explorar")
+        # Verifica as ações por dia
+        if acoes_no_dia >= TEMPO_LIMITE_DIA and estado_jogo == JOGANDO:
+            mensagem_acao += "\nO dia terminou! Você está exausto e precisa dormir. 😴"
+            adicionar_historico("O dia terminou. Você precisa descansar.")
+            # Força o jogador a dormir se ele tiver abrigo
             if abrigo_construido:
-                print("4️⃣ Dormir e passar o dia")
-            print("🇺 Usar item da mochila | 🇸 Sair do jogo")
+                dormir()
+            else:
+                # Se não tiver abrigo, ele perde mais energia e vida por não descansar
+                global vida, energia
+                vida = max(0, vida - 10)
+                energia = max(0, energia - 15)
+                mensagem_acao += "\nVocê não tem um abrigo seguro para dormir. Perdeu mais vida e energia por não descansar adequadamente! 💀"
+                adicionar_historico("Você não conseguiu dormir em segurança e sofreu as consequências.")
+                dias_passados += 1
+                acoes_no_dia = 0 # Reinicia ações para o próximo dia
+
+            # Verifica o fim do jogo novamente após o efeito de exaustão ou sono
+            if verificar_fim_de_jogo():
+                desenhar_fim()
+                break # Sai do loop principal
+        
+        # Exibe mensagens de ação
+        print(f"\n{mensagem_acao}\n")
+        mensagem_acao = "" # Limpa a mensagem após exibir
+
+        if estado_jogo == JOGANDO:
+            print("--- Escolha uma ação ---")
+            print("1. Buscar comida 🍎")
+            print("2. Montar abrigo 🏕️")
+            print("3. Explorar 🗺️")
+            if abrigo_construido:
+                print("4. Dormir 😴")
+            if mochila:
+                print("U. Usar item da mochila 🎒")
+            print("S. Sair do jogo 🚪")
             
-            escolha = input("Sua ação: ").strip().upper()
-            mensagem_acao = "" # Resetar mensagem de ação para a próxima iteração
+            escolha = input("Sua escolha: ").strip().lower()
 
             if escolha == '1':
-                if buscar_comida(): # Retorna True se encontrou comida e precisa de escolha
+                # buscar_comida retorna True se um item foi encontrado para escolha
+                if buscar_comida():
                     estado_jogo = ESPERA_COMIDA
             elif escolha == '2':
                 montar_abrigo()
             elif escolha == '3':
-                explorar() # Pode mudar o estado para COMBATE ou ESPERA_COMIDA internamente
+                # explorar retorna True se um item foi encontrado para escolha (no caso de comida)
+                explorar() # Explorar já muda o estado para COMBATE se encontrar animal
             elif escolha == '4':
                 dormir()
-            elif escolha == 'U':
-                itens_usaveis_mochila = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
-                if itens_usaveis_mochila:
-                    estado_jogo = ESPERA_USAR_ITEM
-                    mensagem_acao = "Selecione o número do item que deseja usar: 🎒"
+            elif escolha == 'u':
+                if not mochila:
+                    mensagem_acao = "Sua mochila está vazia! Não há itens para usar. 🤷‍♀️"
+                    adicionar_historico("Tentou usar item da mochila, mas estava vazia.")
+                    acoes_no_dia += 1 # Conta como uma ação inútil
                 else:
-                    mensagem_acao = "Sua mochila está vazia ou não tem itens usáveis. 😔"
-                    adicionar_historico(f"Você tentou usar um item, mas a mochila estava vazia ou sem itens usáveis.")
-            elif escolha == 'S':
-                estado_jogo = FIM
+                    itens_usaveis = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
+                    if not itens_usaveis:
+                        mensagem_acao = "Você não tem itens usáveis na mochila (apenas armas ou proteção). 🤔"
+                        adicionar_historico("Tentou usar item, mas só tinha armas/proteção.")
+                        acoes_no_dia += 1 # Conta como uma ação inútil
+                    else:
+                        print("\n--- Itens na Mochila ---")
+                        for i, item in enumerate(itens_usaveis):
+                            print(f"{i+1}. {item}")
+                        print("0. Voltar")
+                        try:
+                            escolha_item = int(input("Escolha o número do item para usar (0 para voltar): "))
+                            if escolha_item == 0:
+                                mensagem_acao = "Você decidiu não usar nenhum item."
+                                adicionar_historico("Decidiu não usar item da mochila.")
+                            else:
+                                usar_item_da_mochila(escolha_item) # Esta função já atualiza o estado
+                        except ValueError:
+                            mensagem_acao = "Entrada inválida. Digite um número."
+                            adicionar_historico("Erro: Entrada inválida ao tentar usar item.")
+            elif escolha == 's':
                 mensagem_final = "saida"
-                adicionar_historico(f"Você decidiu desistir da jornada.")
+                estado_jogo = FIM
+                verificar_fim_de_jogo() # Chama para processar a saída
             else:
-                mensagem_acao = "Comando inválido. Tente novamente. 🤷‍♀️"
+                mensagem_acao = "Comando inválido. Tente novamente."
+                adicionar_historico("Erro: Comando inválido.")
+                acoes_no_dia += 1 # Conta como uma ação inútil
 
         elif estado_jogo == ESPERA_COMIDA:
-            print(f"\n>> {mensagem_acao}\n")
-            escolha_comida = input("Sua escolha (C/G): ").strip().upper()
-            
-            if escolha_comida == 'C':
-                if item_a_processar and ITENS_GERAL.get(item_a_processar, {}).get("tipo") == "comida":
-                    item_data = ITENS_GERAL[item_a_processar]
-                    
-                    # Cuidado com item_data["vida_recuperada"] que pode ser uma tupla (min, max)
-                    if isinstance(item_data["vida_recuperada"], tuple):
-                        vida_rec = random.randint(*item_data["vida_recuperada"])
-                    else:
-                        vida_rec = item_data["vida_recuperada"]
-                    
-                    energia_rec = item_data.get("energia_recuperada", 0) # Pode não ter energia recuperada
-                    
-                    # Consumir diretamente o item encontrado (não está na mochila ainda)
-                    global vida, energia, pontuacao, status_doente
-                    
-                    vida = min(vida + vida_rec, VIDA_MAXIMA)
-                    energia = min(energia + energia_rec, ENERGIA_MAXIMA)
-                    pontuacao += 30
-                    
-                    mensagem_acao_temp = f"Você comeu o(a) {item_a_processar}. ❤️ {vida_rec if vida_rec < 0 else '+' + str(vida_rec)} vida, ⚡ +{energia_rec} energia, ⭐ +30 pontos!"
-                    
-                    if item_data.get("chance_doenca") and random.random() < item_data["chance_doenca"]:
-                        status_doente = True
-                        mensagem_acao_temp += " Mas parece que você pegou uma doença estranha... 🤢"
-                        adicionar_historico(f"Você comeu {item_a_processar} e ficou doente.")
-                    
-                    mensagem_acao = mensagem_acao_temp
-                    adicionar_historico(f"Você comeu o(a) {item_a_processar} que encontrou.")
-                else:
-                    mensagem_acao = "Erro: sem comida para comer. 😟"
-                    adicionar_historico(f"Erro ao tentar consumir comida encontrada.")
-            elif escolha_comida == 'G':
-                if item_a_processar and adicionar_item_mochila(item_a_processar):
-                    mensagem_acao = f"Você guardou o(a) {item_a_processar} na mochila. 👍"
-                    adicionar_historico(f"Você guardou {item_a_processar} na mochila.")
-                else:
-                    mensagem_acao = f"Sua mochila está cheia, não foi possível guardar o(a) {item_a_processar}. 🎒🚫"
-                    adicionar_historico(f"Você tentou guardar {item_a_processar}, mas a mochila estava cheia.")
-            else:
-                mensagem_acao = "Escolha inválida. Pressione C para comer ou G para guardar. 🤷‍♂️"
-                continue # Permanece no estado para nova tentativa
-            
-            item_a_processar = None
-            estado_jogo = JOGANDO
-
-        elif estado_jogo == ESPERA_USAR_ITEM:
-            print(f"\n>> {mensagem_acao}\n")
-            itens_usaveis = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
-            
-            for i, item_nome in enumerate(itens_usaveis):
-                print(f"   ({i+1}) {item_nome}")
-            
-            try:
-                escolha_idx = int(input("Número do item para usar: ").strip())
-                usar_item_da_mochila(escolha_idx)
-            except (ValueError, IndexError):
-                mensagem_acao = "Entrada inválida. Digite um número válido. 🔢"
-            
-            # Se a mensagem de ação for a padrão de erro, permanece no estado ESPERA_USAR_ITEM
-            if "inválida" not in mensagem_acao and "fora do alcance" not in mensagem_acao:
+            escolha_comida = input("Deseja (C) Comer agora ou (G) Guardar na mochila? (C/G): ").strip().lower()
+            if escolha_comida == 'c':
+                item_data = ITENS_GERAL[item_a_processar]
+                vida_recuperada = random.randint(*item_data["vida_recuperada"]) if isinstance(item_data["vida_recuperada"], tuple) else item_data["vida_recuperada"]
+                energia_recuperada = item_data["energia_recuperada"]
+                
+                processar_consumo_item(item_a_processar, vida_recuperada, energia_recuperada)
+                item_a_processar = None
                 estado_jogo = JOGANDO
+            elif escolha_comida == 'g':
+                if adicionar_item_mochila(item_a_processar):
+                    mensagem_acao = f"Você guardou o(a) {item_a_processar} na mochila. 🎒"
+                    adicionar_historico(f"Você guardou um(a) {item_a_processar} na mochila.")
+                else:
+                    mensagem_acao = f"Sua mochila está cheia! Você teve que consumir o(a) {item_a_processar}. "
+                    # Se não puder guardar, força o consumo
+                    item_data = ITENS_GERAL[item_a_processar]
+                    vida_recuperada = random.randint(*item_data["vida_recuperada"]) if isinstance(item_data["vida_recuperada"], tuple) else item_data["vida_recuperada"]
+                    energia_recuperada = item_data["energia_recuperada"]
+                    processar_consumo_item(item_a_processar, vida_recuperada, energia_recuperada)
+                    
+                item_a_processar = None
+                acoes_no_dia += 1
+                estado_jogo = JOGANDO
+            else:
+                mensagem_acao = "Escolha inválida. Digite 'C' para Comer ou 'G' para Guardar."
+                # Permanece no estado ESPERA_COMIDA para nova tentativa
 
         elif estado_jogo == COMBATE:
-            gerenciar_combate()
+            gerenciar_combate() # Gerencia um turno de combate
+            # O estado_jogo será atualizado por gerenciar_combate() para JOGANDO se o combate terminar
 
-        time.sleep(1) # Pequena pausa para o jogador ler
-
+# Executa o jogo
 if __name__ == "__main__":
     main()
