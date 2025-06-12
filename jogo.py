@@ -660,6 +660,8 @@ def main():
     while True:
         clear_screen()
         mostrar_status()
+        
+        # Só exibe a vida do inimigo se estiver de fato em combate
         if estado_jogo == COMBATE and inimigo_atual:
             print(f"👾 Vida do {inimigo_atual}: {vida_inimigo_atual}/{ANIMAIS[inimigo_atual]['vida']}")
 
@@ -680,10 +682,12 @@ def main():
                 energia = max(0, energia - 15)
                 mensagem_acao += "\nVocê não tem um abrigo seguro para dormir. Perdeu mais vida e energia por não descansar adequadamente! 💀"
                 adicionar_historico("Você não conseguiu dormir em segurança e sofreu as consequências.")
-                dias_passados += 1 # Avança o dia mesmo sem dormir em abrigo
-                acoes_no_dia = 0 # Reinicia ações para o próximo dia
             else:
                 dormir() # Dormir já incrementa dias_passados e reseta acoes_no_dia
+            
+            # Avança o dia e reinicia as ações, isso é feito após o tratamento de dormir/penalidades
+            dias_passados += 1
+            acoes_no_dia = 0 # Reinicia as ações para o novo dia
 
             # Verifica o fim do jogo novamente após o efeito de exaustão ou sono
             if verificar_fim_de_jogo():
@@ -701,28 +705,31 @@ def main():
             print("3. Explorar 🗺️")
             if abrigo_construido:
                 print("4. Dormir 😴")
-            if mochila:
+            if mochila: # Só mostra a opção se houver algo na mochila
                 print("U. Usar item da mochila 🎒")
             print("S. Sair do jogo 🚪")
             
             escolha = input("Sua escolha: ").strip().lower()
 
             if escolha == '1':
-                # buscar_comida retorna True se um item foi encontrado para escolha
-                if buscar_comida():
+                if buscar_comida(): # Retorna True se um item foi encontrado para escolha
                     estado_jogo = ESPERA_COMIDA
             elif escolha == '2':
                 montar_abrigo()
             elif escolha == '3':
-                # explorar retorna True se um item foi encontrado para escolha (no caso de comida)
                 explorar() # Explorar já muda o estado para COMBATE se encontrar animal
             elif escolha == '4':
-                dormir()
+                if abrigo_construido: # Só permite dormir se houver abrigo
+                    dormir()
+                else:
+                    mensagem_acao = "Você precisa de um abrigo para dormir. 🏕️"
+                    adicionar_historico("Tentou dormir sem abrigo.")
+                    # Não gasta ação para escolha inválida
             elif escolha == 'u':
                 if not mochila:
                     mensagem_acao = "Sua mochila está vazia! Não há itens para usar. 🤷‍♀️"
                     adicionar_historico("Tentou usar item da mochila, mas estava vazia.")
-                    # Não gasta ação para mochila vazia ou sem itens usáveis
+                    # Não gasta ação
                 else:
                     itens_usaveis = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
                     if not itens_usaveis:
@@ -740,7 +747,7 @@ def main():
                                 mensagem_acao = "Você decidiu não usar nenhum item."
                                 adicionar_historico("Decidiu não usar item da mochila.")
                             else:
-                                usar_item_da_mochila(escolha_item) # Esta função já atualiza o estado
+                                usar_item_da_mochila(escolha_item) # Esta função já atualiza o estado e gasta ação se aplicável
                         except ValueError:
                             mensagem_acao = "Entrada inválida. Digite um número."
                             adicionar_historico("Erro: Entrada inválida ao tentar usar item.")
