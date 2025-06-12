@@ -232,18 +232,20 @@ def usar_item_da_mochila(indice_escolhido):
 
         if item_tipo == "medico" or item_tipo == "comida":
             processar_consumo_item(item_nome, vida_recuperada, energia_recuperada)
+            acoes_no_dia += 1 # Ação gasta ao consumir
         elif item_tipo == "utilitario":
             # Para itens utilitários que não se "consomem" ou têm efeito específico
             mensagem_acao = f"Você tentou usar o(a) {item_nome}, mas não teve efeito imediato. 🤔"
             adicionar_historico(f"Você tentou usar um {item_nome}.")
+            acoes_no_dia += 1 # Ação gasta ao tentar usar
             # Se o item é de uso único, remova:
             if item_nome == "Corda": # Exemplo: corda pode ser usada uma vez
                 mochila.remove(item_nome)
         else: # Tipo "arma" ou "protecao" ou outros sem uso direto
             mensagem_acao = f"O(a) {item_nome} não pode ser 'usado' assim. Ele(a) é {item_tipo} e é ativo(a) automaticamente."
             adicionar_historico(f"Você tentou usar {item_nome}, mas não é um item de uso direto.")
+            # Não gasta ação se for um item que não se "usa"
             
-        acoes_no_dia += 1 # Usar item conta como uma ação
         estado_jogo = JOGANDO
 
     except (ValueError, IndexError):
@@ -310,12 +312,14 @@ def montar_abrigo():
     if abrigo_construido:
         adicionar_historico(f"Você tentou construir um abrigo novamente, mas já tinha um.")
         mensagem_acao = "Você já montou o abrigo, não pode construir novamente. 🏕️"
+        acoes_no_dia += 1 # Contar tentativa de ação
         return
 
     custo_energia = int(ENERGIA_CUSTO_ABRIGO_BASE * 1.5)
     if energia < custo_energia:
         adicionar_historico(f"Você tentou montar um abrigo, mas não tinha energia suficiente.")
         mensagem_acao = f"⚡ Energia insuficiente para montar o abrigo! Você precisa de {custo_energia} de energia."
+        acoes_no_dia += 1 # Contar tentativa de ação
         return
     
     frames_abrigo = ["Construindo [.]", "Construindo [..]", "Construindo [...]",
@@ -385,7 +389,7 @@ def explorar():
                 item_encontrado = random.choice(possiveis_itens)
                 if adicionar_item_mochila(item_encontrado):
                     pontuacao_extra = {"medico": 25, "protecao": 35, "arma": 40}.get(tipo_item_encontrado, 0)
-                    pontuacao += pontuacao_extra
+                    pontuacao += pontuacao_extra # Adiciona pontos somente se o item foi realmente guardado
                     mensagem_acao = f"Você encontrou um item: {item_encontrado}! ({tipo_item_encontrado.capitalize()}) ⭐ +{pontuacao_extra} pontos!"
                     adicionar_historico(f"Você encontrou um item de {tipo_item_encontrado}: {item_encontrado}.")
                 else:
@@ -406,6 +410,7 @@ def dormir():
     if not abrigo_construido:
         adicionar_historico(f"Você tentou dormir, mas não tinha um abrigo seguro.")
         mensagem_acao = "Você não tem um abrigo seguro para dormir. Encontre um local ou construa um!"
+        acoes_no_dia += 1 # Contar tentativa de ação
         return
 
     frames_dormir = ["Zzz .", "Zzz ..", "Zzz ...", "Zzz .", "Zzz ..", "Zzz ...", "🌄 Acordando..."]
@@ -668,18 +673,17 @@ def main():
         if acoes_no_dia >= TEMPO_LIMITE_DIA and estado_jogo == JOGANDO:
             mensagem_acao += "\nO dia terminou! Você está exausto e precisa dormir. 😴"
             adicionar_historico("O dia terminou. Você precisa descansar.")
-            # Força o jogador a dormir se ele tiver abrigo
-            if abrigo_construido:
-                dormir()
-            else:
-                # Se não tiver abrigo, ele perde mais energia e vida por não descansar
-                global vida, energia
+            
+            # Penalidades por não ter abrigo ou dormir com abrigo
+            if not abrigo_construido:
                 vida = max(0, vida - 10)
                 energia = max(0, energia - 15)
                 mensagem_acao += "\nVocê não tem um abrigo seguro para dormir. Perdeu mais vida e energia por não descansar adequadamente! 💀"
                 adicionar_historico("Você não conseguiu dormir em segurança e sofreu as consequências.")
-                dias_passados += 1
+                dias_passados += 1 # Avança o dia mesmo sem dormir em abrigo
                 acoes_no_dia = 0 # Reinicia ações para o próximo dia
+            else:
+                dormir() # Dormir já incrementa dias_passados e reseta acoes_no_dia
 
             # Verifica o fim do jogo novamente após o efeito de exaustão ou sono
             if verificar_fim_de_jogo():
@@ -718,13 +722,13 @@ def main():
                 if not mochila:
                     mensagem_acao = "Sua mochila está vazia! Não há itens para usar. 🤷‍♀️"
                     adicionar_historico("Tentou usar item da mochila, mas estava vazia.")
-                    acoes_no_dia += 1 # Conta como uma ação inútil
+                    # Não gasta ação para mochila vazia ou sem itens usáveis
                 else:
                     itens_usaveis = [item for item in mochila if ITENS_GERAL.get(item, {}).get("tipo") in ["comida", "medico", "utilitario"]]
                     if not itens_usaveis:
                         mensagem_acao = "Você não tem itens usáveis na mochila (apenas armas ou proteção). 🤔"
                         adicionar_historico("Tentou usar item, mas só tinha armas/proteção.")
-                        acoes_no_dia += 1 # Conta como uma ação inútil
+                        # Não gasta ação
                     else:
                         print("\n--- Itens na Mochila ---")
                         for i, item in enumerate(itens_usaveis):
@@ -747,7 +751,7 @@ def main():
             else:
                 mensagem_acao = "Comando inválido. Tente novamente."
                 adicionar_historico("Erro: Comando inválido.")
-                acoes_no_dia += 1 # Conta como uma ação inútil
+                # Não gasta ação para comando inválido
 
         elif estado_jogo == ESPERA_COMIDA:
             escolha_comida = input("Deseja (C) Comer agora ou (G) Guardar na mochila? (C/G): ").strip().lower()
@@ -758,6 +762,7 @@ def main():
                 
                 processar_consumo_item(item_a_processar, vida_recuperada, energia_recuperada)
                 item_a_processar = None
+                acoes_no_dia += 1 # Consumir gasta uma ação
                 estado_jogo = JOGANDO
             elif escolha_comida == 'g':
                 if adicionar_item_mochila(item_a_processar):
@@ -772,11 +777,12 @@ def main():
                     processar_consumo_item(item_a_processar, vida_recuperada, energia_recuperada)
                     
                 item_a_processar = None
-                acoes_no_dia += 1
+                acoes_no_dia += 1 # Guardar gasta uma ação
                 estado_jogo = JOGANDO
             else:
                 mensagem_acao = "Escolha inválida. Digite 'C' para Comer ou 'G' para Guardar."
                 # Permanece no estado ESPERA_COMIDA para nova tentativa
+                # Não gasta ação para escolha inválida
 
         elif estado_jogo == COMBATE:
             gerenciar_combate() # Gerencia um turno de combate
