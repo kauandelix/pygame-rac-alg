@@ -33,10 +33,16 @@ DADOS_ITENS = {
     "Antídoto": {"tipo": "medico", "cura_envenenamento": True, "energia_recuperada": 0},
     "Chá de Ervas": {"tipo": "medico", "cura_doenca": True, "energia_recuperada": 5},
     # Itens comestíveis
-    "Fruta": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Maçã": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Banana": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Morango": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Coxinha de Farofa": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Jabuticaba": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Pinhão CRU": {"tipo": "comida", "vida_recuperada": (-1, 8), "energia_recuperada": 10, "chance_doecnca": 0.3},
     "Nozes": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
-    "Raiz comestível": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
+    "Mandioca": {"tipo": "comida", "vida_recuperada": (3, 8), "energia_recuperada": 10},
     "Cogumelo Desconhecido": {"tipo": "comida", "vida_recuperada": (-5, 0), "energia_recuperada": 5, "chance_doenca": 0.5},
+     "Erva do BOB MARLEY": {"tipo": "comida", "vida_recuperada": (-5, -1), "energia_recuperada": -1, "chance_doenca": 0.2},
 }
 
 DADOS_ANIMAIS = {
@@ -47,4 +53,5 @@ DADOS_ANIMAIS = {
     "🐊Jacaré": {"dano_min": 8, "dano_max": 25, "vida": 60, "chance_fuga_base": 0.7, "chance_ferimento_grave": 0.3},
     "🐒Chimpanzé": {"dano_min": 6, "dano_max": 15, "vida": 80, "chance_fuga_base": 0.7},
     "🦍Gorila": {"dano_min": 12, "dano_max": 25, "vida": 100, "chance_fuga_base": 0.3, "chance_ferimento_grave": 0.25},
+    "Capivara": {"dano_min": 7, "dano_max": 19, "vida": 70, "chance_fuga_base": 0.5, "chance_ferimento_grave": 0.1},
 }

@@ -210,7 +210,7 @@ def gerenciar_combate(jogador, inimigo_atual, game_state):
         inimigo_atual.sofrer_dano(dano_causado)
         jogador.pontuacao += 5
         mensagem_combate_turno += f"Você ataca com seu(sua) {arma_usada}, causando {dano_causado} de dano! 💥"
-        jogador.adicionar_historico(f"Você atacou o(a) {inimigo_atual.nome} com {arma_causada}, causando {dano_causado} de dano.")
+        jogador.adicionar_historico(f"Você atacou o(a) {inimigo_atual.nome} com {arma_usada}, causando {dano_causado} de dano.")
 
     elif escolha_combate == 'D':
         energia_gasta = 5
